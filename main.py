@@ -7,9 +7,9 @@ pygame.init()
 # Set up the game window
 WINDOW_WIDTH = 1024
 WINDOW_HEIGHT = 768
-WINDOW_TITLE = 'Space Invaders'
-
+WINDOW_TITLE = 'Python Invaders'
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+
 pygame.display.set_caption(WINDOW_TITLE)
 
 # Set up the clock for consistent frame rate
@@ -30,7 +30,7 @@ player_rect = pygame.Rect(player_x, player_y, player_image.get_width(),
 
 # Load the bullet image
 bullet_image = pygame.image.load('bullet.png')
-bullet_speed = 60
+bullet_speed = 10
 player_bullet_rect = None
 
 # Load the enemy bullet image
@@ -40,7 +40,7 @@ enemy_bullets = []
 # Bullet trails list
 bullet_trails = []
 # Bullet trail duration
-BULLET_TRAIL_DURATION = 200  # in milliseconds
+BULLET_TRAIL_DURATION = 1000  # in milliseconds
 
 
 def draw_triangle(surface, x, y, width, height, color):
@@ -49,11 +49,11 @@ def draw_triangle(surface, x, y, width, height, color):
 
 
 def get_faded_color(current_time):
-    fade_duration = 500
+    fade_duration = 750
     t = (current_time % fade_duration) / fade_duration
     if t > 0.5:
         t = 1 - t
-    blue = (0, 0, 255)
+    blue = (128, 128, 128)
     purple = (0, 0, 0)
     r = blue[0] + t * (purple[0] - blue[0])
     g = blue[1] + t * (purple[1] - blue[1])
@@ -118,12 +118,12 @@ for row in range(2):
 enemy_speed = 1
 max_enemy_speed = 10  # Set the maximum enemy speed
 enemy_direction = 1
-enemies_down_speed = 10
+enemies_down_speed = 30
 enemies_destroyed = 0
 
 
 def move_enemies():
-    global enemies, enemy_speed, enemy_direction, enemies_down_speed
+    global enemies, enemy_speed, enemy_direction, enemies_down_speed, game_state
     move_down = False
     for enemy_rect in enemies:
         if (enemy_rect.left <= WINDOW_WIDTH * 0.10 and enemy_direction
@@ -136,9 +136,12 @@ def move_enemies():
         enemy_direction *= -1
         for enemy_rect in enemies:
             enemy_rect.move_ip(0, enemies_down_speed)
+        
     else:
         for enemy_rect in enemies:
             enemy_rect.move_ip(enemy_speed * enemy_direction, 0)
+    if enemy_rect[1] >= WINDOW_HEIGHT:
+            game_state = 'game_over'
 
 
 def enemy_shoot():
@@ -198,7 +201,7 @@ def show_end_screen():
 
 
 def reset_game(rowing):
-    global player_rect, player_bullet_rect, enemy_bullets, enemies, score, enemies_destroyed, enemy_speed, lives
+    global player_rect, player_bullet_rect, enemy_bullets, enemies, score, enemies_destroyed, enemy_speed, lives, game_over
 
     # Reset player position
     player_rect.x = WINDOW_WIDTH / 2 - player_image.get_width() / 2
@@ -221,12 +224,13 @@ def reset_game(rowing):
             enemies.append(enemy_rect)
 
     # Reset lives and score
-    lives = 3
-    score = 0
-    enemies_destroyed = 0
+    if game_over == True:
+        lives = 3
+        score = 0
 
     # Reset enemy speed
     enemy_speed = 1
+    enemies_destroyed = 0
 
 
 def normalize_vector(x, y):
@@ -262,6 +266,8 @@ def move_enemy_bullets():
         # Remove bullets that leave the screen and their trails
         if enemy_bullet_rect.top > WINDOW_HEIGHT:
             enemy_bullets.remove(enemy_bullet)
+
+
 def pause_menu():
     while True:
         for event in pygame.event.get():
@@ -270,18 +276,37 @@ def pause_menu():
                     sys.exit()
                 elif event.key == pygame.K_ESCAPE:
                     return
-        
-        screen.fill((0, 0, 0)) # fill screen with black
+
+        screen.fill((0, 0, 32))  # fill screen with black
         draw_text(screen, "PAUSED", WINDOW_WIDTH // 2 - 200,
                   WINDOW_HEIGHT // 2 - 100, 72, (255, 255, 255))
         draw_text(screen, "Press ESC to continue or Q to quit",
-                  WINDOW_WIDTH // 2 - 300, WINDOW_HEIGHT // 2, 36, (255, 255, 255))
+                  WINDOW_WIDTH // 2 - 300, WINDOW_HEIGHT // 2, 36,
+                  (255, 255, 255))
         pygame.display.update()
 
+
+def process_events():
+    global player_rect, player_speed, is_shooting, player_bullet_rect
+
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pause_menu()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                is_shooting = True
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_SPACE:
+                is_shooting = False
+
+
 # Game loop
+is_shooting = False  # add this variable to keep track of shooting status
 game_state = "running"
 running = True
 game_over = False
+
 while running:
     if not game_over:
         # All the game logic and rendering code here, e.g.:
@@ -291,23 +316,27 @@ while running:
         # - Drawing game elements on the screen
 
         # Check if the game is over
-
+        process_events()
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pause_menu()
-      
-        clock.tick(FPS)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE and player_bullet_rect is None:
-                    player_bullet_rect = pygame.Rect(
-                        player_rect.centerx - bullet_image.get_width() // 2,
-                        player_rect.top - bullet_image.get_height(),
-                        bullet_image.get_width(), bullet_image.get_height())
+        clock.tick(FPS)
+
+        # Update player bullet object only if is_shooting is True
+        if is_shooting:
+            if not player_bullet_rect:
+                player_bullet_x, player_bullet_y = player_rect.centerx - bullet_image.get_width(
+                ) // 2, player_rect.top
+                player_bullet_rect = pygame.Rect(player_bullet_x,
+                                                 player_bullet_y,
+                                                 bullet_image.get_width(),
+                                                 bullet_image.get_height())
+            else:
+                player_bullet_rect.move_ip(0, -bullet_speed)
+                if player_bullet_rect.top <= 0:
+                    player_bullet_rect = None
 
         # Move the player's spaceship
         keys = pygame.key.get_pressed()
@@ -336,7 +365,8 @@ while running:
 
         # Enemy shooting
         current_time = pygame.time.get_ticks()
-        if current_time - last_enemy_shoot_time > ENEMY_SHOOT_DELAY:
+        if current_time - last_enemy_shoot_time > (
+                ENEMY_SHOOT_DELAY - (0.1 * ENEMY_SHOOT_DELAY * wave)):
             enemy_shoot()
             last_enemy_shoot_time = current_time
 
@@ -352,6 +382,8 @@ while running:
                 else:
                     enemies.remove(enemy_rect)
                     break
+            # if enemies.bottom >= WINDOW_HEIGHT:
+            # game_over = True
 
         # Detect collisions between the player's bullets and the enemies
         if player_bullet_rect is not None:
@@ -390,7 +422,7 @@ while running:
         ]
 
         # Draw the game elements on the screen
-        screen.fill((0, 0, 0))
+        screen.fill((0, 0, 32))
         screen.blit(player_image, player_rect)
         for enemy_rect in enemies:
             screen.blit(enemy_images[enemy_image_index], enemy_rect)
@@ -408,7 +440,7 @@ while running:
                                   bullet_rotation, bullet_color)
 
         # Draw bullet trails
-        static_red_color = (128, 0, 0
+        static_red_color = (32, 32, 64
                             )  # A static red color for the bullet trails
         for enemy_bullet in enemy_bullets:
             for trail in enemy_bullet['trails']:
@@ -443,6 +475,8 @@ while running:
         draw_text(screen, f"Lives: {lives}", 10, 10, 36, (255, 255, 255))
         draw_text(screen, f"Score: {score}", 10, 50, 36, (255, 255, 255))
         draw_text(screen, f"Wave: {wave}", 10, 90, 36, (255, 255, 255))
+        draw_text(screen, f"debug: {enemy_rect}", 10, 130, 36, (255, 255, 255))
+
     if game_state == "game_over":
         if show_end_screen():  # Returns True if the player wants to restart
             wave = 1
