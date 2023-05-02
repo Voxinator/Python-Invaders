@@ -118,12 +118,12 @@ for row in range(2):
 enemy_speed = 1
 max_enemy_speed = 10  # Set the maximum enemy speed
 enemy_direction = 1
-enemies_down_speed = 10
+enemies_down_speed = 30
 enemies_destroyed = 0
 
 
 def move_enemies():
-    global enemies, enemy_speed, enemy_direction, enemies_down_speed
+    global enemies, enemy_speed, enemy_direction, enemies_down_speed, game_state
     move_down = False
     for enemy_rect in enemies:
         if (enemy_rect.left <= WINDOW_WIDTH * 0.10 and enemy_direction
@@ -136,9 +136,12 @@ def move_enemies():
         enemy_direction *= -1
         for enemy_rect in enemies:
             enemy_rect.move_ip(0, enemies_down_speed)
+        
     else:
         for enemy_rect in enemies:
             enemy_rect.move_ip(enemy_speed * enemy_direction, 0)
+    if enemy_rect[1] >= WINDOW_HEIGHT:
+            game_state = 'game_over'
 
 
 def enemy_shoot():
@@ -419,7 +422,7 @@ while running:
         ]
 
         # Draw the game elements on the screen
-        screen.fill((0, 0, 0))
+        screen.fill((0, 0, 32))
         screen.blit(player_image, player_rect)
         for enemy_rect in enemies:
             screen.blit(enemy_images[enemy_image_index], enemy_rect)
